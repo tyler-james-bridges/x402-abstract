@@ -1,72 +1,101 @@
 "use client";
 
-import { formatUsd, timeAgo } from "@/lib/format";
-import { SerializedSellerStats } from "@/lib/transfers";
 import AddressCell from "./AddressCell";
+import { formatUsd, timeAgo } from "@/lib/format";
 
-interface SellerTableProps {
-  sellers: SerializedSellerStats[];
+interface SerializedSellerStats {
+  address: string;
+  txCount: number;
+  totalVolume: string;
+  uniqueBuyerCount: number;
+  lastActive: number;
 }
 
-export default function SellerTable({ sellers }: SellerTableProps) {
+export default function SellerTable({
+  sellers,
+}: {
+  sellers: SerializedSellerStats[];
+}) {
   if (sellers.length === 0) {
     return (
-      <div className="text-gray-400 text-sm py-8 text-center">
-        No sellers found.
+      <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+        <p className="text-gray-500">No sellers found</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-800">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-gray-900 border-b border-gray-800">
-          <tr>
-            <th className="text-left px-4 py-3 text-gray-400 font-medium">
-              Address
-            </th>
-            <th className="text-right px-4 py-3 text-gray-400 font-medium">
-              Transactions
-            </th>
-            <th className="text-right px-4 py-3 text-gray-400 font-medium">
-              Volume
-            </th>
-            <th className="text-right px-4 py-3 text-gray-400 font-medium hidden md:table-cell">
-              Unique Buyers
-            </th>
-            <th className="text-right px-4 py-3 text-gray-400 font-medium hidden md:table-cell">
-              Last Active
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {sellers.map((s, i) => (
-            <tr
-              key={s.address}
-              className={i % 2 === 0 ? "bg-gray-950" : "bg-gray-900"}
-            >
-              <td className="px-4 py-3">
-                <AddressCell
-                  address={s.address}
-                  href={`/seller/${s.address}`}
-                />
-              </td>
-              <td className="px-4 py-3 text-right text-white font-mono">
-                {s.txCount.toLocaleString()}
-              </td>
-              <td className="px-4 py-3 text-right text-green-400 font-mono">
-                {formatUsd(BigInt(s.totalVolume))}
-              </td>
-              <td className="px-4 py-3 text-right text-gray-300 hidden md:table-cell">
-                {s.uniqueBuyerCount.toLocaleString()}
-              </td>
-              <td className="px-4 py-3 text-right text-gray-400 whitespace-nowrap hidden md:table-cell">
-                {timeAgo(s.lastActive)}
-              </td>
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Seller
+              </th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Txns
+              </th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Volume
+              </th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                Buyers
+              </th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                Last Active
+              </th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                Chain
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {sellers.map((seller) => (
+              <tr
+                key={seller.address}
+                className="hover:bg-gray-50 transition-colors"
+              >
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0" />
+                    <AddressCell
+                      address={seller.address}
+                      link={`/seller/${seller.address}`}
+                    />
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <span className="text-sm font-medium text-gray-900">
+                    {seller.txCount.toLocaleString()}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatUsd(BigInt(seller.totalVolume))}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right hidden sm:table-cell">
+                  <span className="text-sm text-gray-600">
+                    {seller.uniqueBuyerCount}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right hidden md:table-cell">
+                  <span className="text-sm text-gray-500">
+                    {timeAgo(seller.lastActive)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-center hidden lg:table-cell">
+                  <div className="inline-flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-full bg-purple-500" />
+                    <span className="text-xs text-gray-500">Abstract</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

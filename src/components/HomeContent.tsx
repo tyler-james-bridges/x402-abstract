@@ -4,16 +4,52 @@ import { useEffect, useState } from "react";
 import StatsBar from "./StatsBar";
 import TransactionTable from "./TransactionTable";
 import SellerTable from "./SellerTable";
-import {
-  SerializedTransfer,
-  SerializedStats,
-  SerializedSellerStats,
-} from "@/lib/transfers";
+
+interface SerializedTransfer {
+  hash: string;
+  blockNumber: string;
+  from: string;
+  to: string;
+  value: string;
+  timestamp: number;
+}
+
+interface SerializedStats {
+  totalCount: number;
+  totalVolume: string;
+  uniqueBuyers: number;
+  uniqueSellers: number;
+}
+
+interface SerializedSellerStats {
+  address: string;
+  txCount: number;
+  totalVolume: string;
+  uniqueBuyerCount: number;
+  lastActive: number;
+}
 
 interface HomeContentProps {
   initialTransfers: SerializedTransfer[];
   initialStats: SerializedStats;
   initialSellers: SerializedSellerStats[];
+}
+
+function SectionHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-end justify-between mb-4">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <p className="text-sm text-gray-500 mt-0.5">{description}</p>
+      </div>
+    </div>
+  );
 }
 
 export default function HomeContent({
@@ -23,7 +59,7 @@ export default function HomeContent({
 }: HomeContentProps) {
   const [transfers, setTransfers] = useState(initialTransfers);
   const [stats, setStats] = useState(initialStats);
-  const [sellers] = useState(initialSellers);
+  const [sellers, setSellers] = useState(initialSellers);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -33,38 +69,46 @@ export default function HomeContent({
         const data = await res.json();
         setTransfers(data.transfers);
         setStats(data.stats);
+        setSellers(data.sellers);
       } catch {
-        // silently ignore refresh errors
+        /* silent refresh failure */
       }
-    }, 30_000);
-
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const statsForBar = {
-    totalCount: stats.totalCount,
-    totalVolume: BigInt(stats.totalVolume),
-    uniqueBuyers: stats.uniqueBuyers,
-    uniqueSellers: stats.uniqueSellers,
-  };
-
   return (
-    <>
-      <StatsBar stats={statsForBar} />
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <section>
-          <h2 className="text-lg font-semibold text-white mb-3">
-            Recent Transactions
-          </h2>
-          <TransactionTable transfers={transfers} />
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold text-white mb-3">Top Sellers</h2>
-          <SellerTable sellers={sellers} />
-        </section>
+    <div className="space-y-8">
+      <div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">x402 on Abstract</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Real-time x402 payment activity on Abstract L2
+          </p>
+        </div>
+        <StatsBar
+          totalCount={stats.totalCount}
+          totalVolume={stats.totalVolume}
+          uniqueBuyers={stats.uniqueBuyers}
+          uniqueSellers={stats.uniqueSellers}
+        />
       </div>
-    </>
+
+      <div>
+        <SectionHeader
+          title="Top Sellers"
+          description="Addresses receiving x402 payments on Abstract"
+        />
+        <SellerTable sellers={sellers} />
+      </div>
+
+      <div>
+        <SectionHeader
+          title="Recent Transactions"
+          description="x402 USDC.e transfers on Abstract L2"
+        />
+        <TransactionTable transfers={transfers} />
+      </div>
+    </div>
   );
 }

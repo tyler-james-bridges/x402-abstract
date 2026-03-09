@@ -1,76 +1,99 @@
 "use client";
 
-import { formatUsd, timeAgo } from "@/lib/format";
-import { SerializedTransfer } from "@/lib/transfers";
 import AddressCell from "./AddressCell";
+import { formatUsd, timeAgo } from "@/lib/format";
 
-interface TransactionTableProps {
-  transfers: SerializedTransfer[];
+interface SerializedTransfer {
+  hash: string;
+  blockNumber: string;
+  from: string;
+  to: string;
+  value: string;
+  timestamp: number;
 }
 
-export default function TransactionTable({ transfers }: TransactionTableProps) {
+export default function TransactionTable({
+  transfers,
+}: {
+  transfers: SerializedTransfer[];
+}) {
   if (transfers.length === 0) {
     return (
-      <div className="text-gray-400 text-sm py-8 text-center">
-        No transactions found.
+      <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+        <p className="text-gray-500">No transactions found</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-800">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-gray-900 border-b border-gray-800">
-          <tr>
-            <th className="text-left px-4 py-3 text-gray-400 font-medium">
-              Seller
-            </th>
-            <th className="text-right px-4 py-3 text-gray-400 font-medium">
-              Amount
-            </th>
-            <th className="text-left px-4 py-3 text-gray-400 font-medium hidden md:table-cell">
-              Buyer
-            </th>
-            <th className="text-left px-4 py-3 text-gray-400 font-medium">
-              TX Hash
-            </th>
-            <th className="text-right px-4 py-3 text-gray-400 font-medium">
-              Time
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {transfers.map((t, i) => (
-            <tr
-              key={`${t.hash}-${i}`}
-              className={i % 2 === 0 ? "bg-gray-950" : "bg-gray-900"}
-            >
-              <td className="px-4 py-3">
-                <AddressCell address={t.to} href={`/seller/${t.to}`} />
-              </td>
-              <td className="px-4 py-3 text-right text-green-400 font-mono">
-                {formatUsd(BigInt(t.value))}
-              </td>
-              <td className="px-4 py-3 hidden md:table-cell">
-                <AddressCell address={t.from} />
-              </td>
-              <td className="px-4 py-3">
-                <a
-                  href={`https://abscan.org/tx/${t.hash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  {`${t.hash.slice(0, 8)}...`}
-                </a>
-              </td>
-              <td className="px-4 py-3 text-right text-gray-400 whitespace-nowrap">
-                {timeAgo(t.timestamp)}
-              </td>
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Seller
+              </th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Amount
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                Buyer
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                TX Hash
+              </th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                Time
+              </th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                Chain
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {transfers.map((tx, i) => (
+              <tr
+                key={`${tx.hash}-${i}`}
+                className="hover:bg-gray-50 transition-colors"
+              >
+                <td className="px-4 py-3">
+                  <AddressCell address={tx.to} link={`/seller/${tx.to}`} />
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <span className="font-medium text-sm text-gray-900">
+                    {formatUsd(BigInt(tx.value))}
+                  </span>
+                </td>
+                <td className="px-4 py-3 hidden md:table-cell">
+                  <AddressCell address={tx.from} />
+                </td>
+                <td className="px-4 py-3">
+                  <a
+                    href={`https://abscan.org/tx/${tx.hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    {tx.hash.slice(0, 8)}...{tx.hash.slice(-6)}
+                  </a>
+                </td>
+                <td className="px-4 py-3 text-right hidden sm:table-cell">
+                  <span className="text-sm text-gray-500">
+                    {timeAgo(tx.timestamp)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-center hidden lg:table-cell">
+                  <div className="inline-flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-full bg-purple-500" />
+                    <span className="text-xs text-gray-500">Abstract</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
