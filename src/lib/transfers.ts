@@ -1,8 +1,12 @@
-import { publicClient, USDC_E_ADDRESS, TRANSFER_EVENT_ABI } from "./abstract";
+import {
+  ABSCAN_API,
+  FACILITATOR_ADDRESS,
+  PAYMENT_SELECTORS,
+} from "./abstract";
 
 export interface Transfer {
   hash: string;
-  blockNumber: bigint;
+  blockNumber: string;
   from: string;
   to: string;
   value: bigint;
@@ -48,6 +52,14 @@ export interface SerializedStats {
   uniqueSellers: number;
 }
 
+interface AbscanTx {
+  hash: string;
+  blockNumber: string;
+  timeStamp: string;
+  input: string;
+  isError: string;
+}
+
 interface Cache {
   data: Transfer[];
   timestamp: number;
@@ -56,6 +68,22 @@ interface Cache {
 const cache: Cache = { data: [], timestamp: 0 };
 const CACHE_TTL_MS = 30_000;
 
+function decodePayment(input: string): {
+  from: string;
+  to: string;
+  value: bigint;
+} | null {
+  const selector = input.slice(0, 10);
+  if (!PAYMENT_SELECTORS.includes(selector)) return null;
+  if (input.length < 202) return null;
+
+  const from = "0x" + input.slice(34, 74);
+  const to = "0x" + input.slice(98, 138);
+  const value = BigInt("0x" + input.slice(138, 202));
+
+  return { from, to, value };
+}
+
 export async function fetchTransfers(
   limit = 50,
   seller?: string,
@@ -63,53 +91,44 @@ export async function fetchTransfers(
   const now = Date.now();
 
   if (cache.data.length > 0 && now - cache.timestamp < CACHE_TTL_MS) {
-    const cached = cache.data;
     const filtered = seller
-      ? cached.filter((t) => t.to.toLowerCase() === seller.toLowerCase())
-      : cached;
+      ? cache.data.filter(
+          (t) => t.to.toLowerCase() === seller.toLowerCase(),
+        )
+      : cache.data;
     return filtered.slice(0, limit);
   }
 
-  const latestBlock = await publicClient.getBlockNumber();
-  const fromBlock = latestBlock > 2000n ? latestBlock - 2000n : 0n;
+  const url = new URL(ABSCAN_API);
+  url.searchParams.set("module", "account");
+  url.searchParams.set("action", "txlist");
+  url.searchParams.set("address", FACILITATOR_ADDRESS);
+  url.searchParams.set("sort", "desc");
+  url.searchParams.set("offset", "200");
 
-  const logs = await publicClient.getLogs({
-    address: USDC_E_ADDRESS,
-    event: TRANSFER_EVENT_ABI,
-    fromBlock,
-    toBlock: latestBlock,
-  });
+  const res = await fetch(url.toString(), { cache: "no-store" });
+  if (!res.ok) return [];
 
-  const blockNumbers = [...new Set(logs.map((l) => l.blockNumber))].filter(
-    (bn): bn is bigint => bn !== null,
-  );
+  const json = await res.json();
+  const txList: AbscanTx[] = json.result ?? [];
 
-  const blockTimestamps = new Map<bigint, number>();
-  await Promise.all(
-    blockNumbers.map(async (bn) => {
-      const block = await publicClient.getBlock({ blockNumber: bn });
-      blockTimestamps.set(bn, Number(block.timestamp));
-    }),
-  );
+  const transfers: Transfer[] = [];
 
-  const transfers: Transfer[] = logs
-    .filter(
-      (log) =>
-        log.transactionHash !== null &&
-        log.blockNumber !== null &&
-        log.args.from !== undefined &&
-        log.args.to !== undefined &&
-        log.args.value !== undefined,
-    )
-    .map((log) => ({
-      hash: log.transactionHash as string,
-      blockNumber: log.blockNumber as bigint,
-      from: log.args.from as string,
-      to: log.args.to as string,
-      value: log.args.value as bigint,
-      timestamp: blockTimestamps.get(log.blockNumber as bigint) ?? 0,
-    }))
-    .sort((a, b) => Number(b.blockNumber - a.blockNumber));
+  for (const tx of txList) {
+    if (tx.isError === "1") continue;
+
+    const decoded = decodePayment(tx.input);
+    if (!decoded) continue;
+
+    transfers.push({
+      hash: tx.hash,
+      blockNumber: tx.blockNumber,
+      from: decoded.from,
+      to: decoded.to,
+      value: decoded.value,
+      timestamp: Number(tx.timeStamp),
+    });
+  }
 
   cache.data = transfers;
   cache.timestamp = now;
@@ -167,7 +186,7 @@ export function computeSellerStats(transfers: Transfer[]): SellerStats[] {
 export function serializeTransfer(t: Transfer): SerializedTransfer {
   return {
     hash: t.hash,
-    blockNumber: t.blockNumber.toString(),
+    blockNumber: t.blockNumber,
     from: t.from,
     to: t.to,
     value: t.value.toString(),

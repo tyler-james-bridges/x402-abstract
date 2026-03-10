@@ -1,4 +1,4 @@
-import { createPublicClient, http, defineChain, parseAbiItem } from "viem";
+import { defineChain } from "viem";
 
 export const abstractChain = defineChain({
   id: 2741,
@@ -12,14 +12,10 @@ export const abstractChain = defineChain({
   },
 });
 
-export const publicClient = createPublicClient({
-  chain: abstractChain,
-  transport: http(),
-});
+export const ABSCAN_API = "https://block-explorer-api.mainnet.abs.xyz/api";
 
-export const USDC_E_ADDRESS =
-  "0x84A71ccD554Cc1b02749b35d22F684CC8ec987e1" as const;
+export const FACILITATOR_ADDRESS =
+  "0xd6316bca0446b63f2deffa8ed4e8191912a5e7e1";
 
-export const TRANSFER_EVENT_ABI = parseAbiItem(
-  "event Transfer(address indexed from, address indexed to, uint256 value)",
-);
+// Known facilitator method selectors for x402 payments
+export const PAYMENT_SELECTORS = ["0xe3ee160e", "0xcf092995"];

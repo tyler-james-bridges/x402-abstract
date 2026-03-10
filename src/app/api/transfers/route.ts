@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   fetchTransfers,
   computeStats,
+  computeSellerStats,
   serializeTransfer,
+  serializeSellerStats,
 } from "@/lib/transfers";
 
 export async function GET(request: NextRequest) {
@@ -14,6 +16,7 @@ export async function GET(request: NextRequest) {
 
   const transfers = await fetchTransfers(limit, seller);
   const stats = computeStats(transfers);
+  const sellers = computeSellerStats(transfers);
 
   return NextResponse.json(
     {
@@ -24,6 +27,7 @@ export async function GET(request: NextRequest) {
         uniqueBuyers: stats.uniqueBuyers,
         uniqueSellers: stats.uniqueSellers,
       },
+      sellers: sellers.map(serializeSellerStats),
     },
     {
       headers: { "Cache-Control": "no-store" },

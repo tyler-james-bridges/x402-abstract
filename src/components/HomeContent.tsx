@@ -45,8 +45,8 @@ function SectionHeader({
   return (
     <div className="flex items-end justify-between mb-4">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-        <p className="text-sm text-gray-500 mt-0.5">{description}</p>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
       </div>
     </div>
   );
@@ -81,8 +81,8 @@ export default function HomeContent({
     <div className="space-y-8">
       <div>
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">x402 on Abstract</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">x402 on Abstract</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Real-time x402 payment activity on Abstract L2
           </p>
         </div>
