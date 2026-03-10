@@ -78,7 +78,7 @@ export default function TransactionTable({
                     {tx.hash.slice(0, 8)}...{tx.hash.slice(-6)}
                   </a>
                 </td>
-                <td className="px-4 py-3 text-right hidden sm:table-cell">
+                <td className="px-4 py-3 text-right hidden sm:table-cell" suppressHydrationWarning>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     {timeAgo(tx.timestamp)}
                   </span>

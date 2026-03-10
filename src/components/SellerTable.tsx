@@ -80,7 +80,7 @@ export default function SellerTable({
                     {seller.uniqueBuyerCount}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right hidden md:table-cell">
+                <td className="px-4 py-3 text-right hidden md:table-cell" suppressHydrationWarning>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     {timeAgo(seller.lastActive)}
                   </span>

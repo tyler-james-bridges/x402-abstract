@@ -11,13 +11,13 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const transfers = await fetchTransfers();
-  const stats = computeStats(transfers);
-  const sellers = computeSellerStats(transfers);
+  const allTransfers = await fetchTransfers(200);
+  const stats = computeStats(allTransfers);
+  const sellers = computeSellerStats(allTransfers);
 
   return (
     <HomeContent
-      initialTransfers={transfers.map(serializeTransfer)}
+      initialTransfers={allTransfers.slice(0, 50).map(serializeTransfer)}
       initialStats={serializeStats(stats)}
       initialSellers={sellers.map(serializeSellerStats)}
     />

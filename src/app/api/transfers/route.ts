@@ -14,9 +14,12 @@ export async function GET(request: NextRequest) {
 
   const limit = Math.min(limitParam ? parseInt(limitParam, 10) : 50, 200);
 
-  const transfers = await fetchTransfers(limit, seller);
-  const stats = computeStats(transfers);
-  const sellers = computeSellerStats(transfers);
+  const allTransfers = await fetchTransfers(200);
+  const stats = computeStats(allTransfers);
+  const sellers = computeSellerStats(allTransfers);
+  const transfers = seller
+    ? allTransfers.filter((t) => t.to.toLowerCase() === seller.toLowerCase()).slice(0, limit)
+    : allTransfers.slice(0, limit);
 
   return NextResponse.json(
     {
