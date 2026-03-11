@@ -7,6 +7,19 @@ import {
   serializeSellerStats,
 } from "@/lib/transfers";
 
+const ACK_TIPS_URL = "https://ack-onchain.dev/api/tips/hashes";
+
+async function fetchTipHashes(): Promise<Set<string>> {
+  try {
+    const res = await fetch(ACK_TIPS_URL, { next: { revalidate: 30 } });
+    if (!res.ok) return new Set();
+    const data = await res.json();
+    return new Set((data.hashes as string[]).map((h) => h.toLowerCase()));
+  } catch {
+    return new Set();
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const limitParam = searchParams.get("limit");
@@ -14,7 +27,20 @@ export async function GET(request: NextRequest) {
 
   const limit = Math.min(limitParam ? parseInt(limitParam, 10) : 50, 200);
 
-  const allTransfers = await fetchTransfers(200);
+  const [allTransfers, tipHashes] = await Promise.all([
+    fetchTransfers(200),
+    fetchTipHashes(),
+  ]);
+
+  // Reclassify transfers based on tip hash registry
+  for (const t of allTransfers) {
+    if (tipHashes.has(t.hash.toLowerCase())) {
+      t.paymentType = "tip";
+    } else {
+      t.paymentType = "service";
+    }
+  }
+
   const stats = computeStats(allTransfers);
   const sellers = computeSellerStats(allTransfers);
   const transfers = seller

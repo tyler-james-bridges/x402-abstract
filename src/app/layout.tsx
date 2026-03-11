@@ -19,7 +19,7 @@ function Header() {
     <header className="border-b border-border bg-surface sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
-          <Link href="/" className="font-semibold text-text-primary text-lg">x402<span className="text-accent">Abstract</span></Link>
+          <Link href="/" className="font-semibold text-text-primary text-lg">x402 <span className="text-accent">Abstract</span></Link>
           <nav className="hidden sm:flex items-center gap-1">
             <Link
               href="/"
