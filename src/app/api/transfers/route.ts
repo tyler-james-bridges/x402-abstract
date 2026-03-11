@@ -32,12 +32,10 @@ export async function GET(request: NextRequest) {
     fetchTipHashes(),
   ]);
 
-  // Reclassify transfers based on tip hash registry
+  // Supplement selector-based classification with tip hash registry
   for (const t of allTransfers) {
     if (tipHashes.has(t.hash.toLowerCase())) {
       t.paymentType = "tip";
-    } else {
-      t.paymentType = "service";
     }
   }
 

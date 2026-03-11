@@ -77,7 +77,7 @@ function decodePayment(input: string): {
   const from = "0x" + input.slice(34, 74);
   const to = "0x" + input.slice(98, 138);
   const value = BigInt("0x" + input.slice(138, 202));
-  const paymentType: PaymentType = "service";
+  const paymentType: PaymentType = selector === "0xcf092995" ? "tip" : "service";
 
   return { from, to, value, paymentType };
 }
