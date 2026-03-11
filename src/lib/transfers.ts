@@ -4,6 +4,8 @@ import {
   PAYMENT_SELECTORS,
 } from "./abstract";
 
+export type PaymentType = "tip" | "service";
+
 export interface Transfer {
   hash: string;
   blockNumber: string;
@@ -11,6 +13,7 @@ export interface Transfer {
   to: string;
   value: bigint;
   timestamp: number;
+  paymentType: PaymentType;
 }
 
 export interface SerializedTransfer {
@@ -20,6 +23,7 @@ export interface SerializedTransfer {
   to: string;
   value: string;
   timestamp: number;
+  paymentType: PaymentType;
 }
 
 export interface SellerStats {
@@ -60,18 +64,11 @@ interface AbscanTx {
   isError: string;
 }
 
-interface Cache {
-  data: Transfer[];
-  timestamp: number;
-}
-
-const cache: Cache = { data: [], timestamp: 0 };
-const CACHE_TTL_MS = 30_000;
-
 function decodePayment(input: string): {
   from: string;
   to: string;
   value: bigint;
+  paymentType: PaymentType;
 } | null {
   const selector = input.slice(0, 10);
   if (!PAYMENT_SELECTORS.includes(selector)) return null;
@@ -80,25 +77,15 @@ function decodePayment(input: string): {
   const from = "0x" + input.slice(34, 74);
   const to = "0x" + input.slice(98, 138);
   const value = BigInt("0x" + input.slice(138, 202));
+  const paymentType: PaymentType = selector === "0xe3ee160e" ? "service" : "tip";
 
-  return { from, to, value };
+  return { from, to, value, paymentType };
 }
 
 export async function fetchTransfers(
   limit = 50,
   seller?: string,
 ): Promise<Transfer[]> {
-  const now = Date.now();
-
-  if (cache.data.length > 0 && now - cache.timestamp < CACHE_TTL_MS) {
-    const filtered = seller
-      ? cache.data.filter(
-          (t) => t.to.toLowerCase() === seller.toLowerCase(),
-        )
-      : cache.data;
-    return filtered.slice(0, limit);
-  }
-
   const url = new URL(ABSCAN_API);
   url.searchParams.set("module", "account");
   url.searchParams.set("action", "txlist");
@@ -127,11 +114,9 @@ export async function fetchTransfers(
       to: decoded.to,
       value: decoded.value,
       timestamp: Number(tx.timeStamp),
+      paymentType: decoded.paymentType,
     });
   }
-
-  cache.data = transfers;
-  cache.timestamp = now;
 
   const filtered = seller
     ? transfers.filter((t) => t.to.toLowerCase() === seller.toLowerCase())
@@ -191,6 +176,7 @@ export function serializeTransfer(t: Transfer): SerializedTransfer {
     to: t.to,
     value: t.value.toString(),
     timestamp: t.timestamp,
+    paymentType: t.paymentType,
   };
 }
 

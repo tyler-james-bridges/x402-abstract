@@ -21,7 +21,7 @@ export default function AddressCell({
   const display = formatAddress(address);
 
   const content = (
-    <span className="font-mono text-sm text-gray-700 dark:text-gray-300 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+    <span className="font-mono text-sm text-text-secondary group-hover:text-accent transition-colors">
       {display}
     </span>
   );
@@ -37,12 +37,12 @@ export default function AddressCell({
       )}
       <button
         onClick={handleCopy}
-        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-text-secondary"
         title="Copy address"
       >
         {copied ? (
           <svg
-            className="w-3.5 h-3.5 text-green-500"
+            className="w-3.5 h-3.5 text-accent"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

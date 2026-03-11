@@ -7,11 +7,11 @@ interface StatsBarProps {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+    <div className="bg-surface rounded-xl border border-border p-5">
+      <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-1">
         {label}
       </p>
-      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
+      <p className="text-2xl font-bold text-text-primary">{value}</p>
     </div>
   );
 }
