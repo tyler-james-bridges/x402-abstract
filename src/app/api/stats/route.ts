@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { fetchTransfers, computeStats } from "@/lib/transfers";
+import { getCumulativeStats, lastSyncedAt } from "@/lib/snapshot";
 
+// All-time totals, sourced from data/x402-snapshot.json (kept current by
+// the sync-x402-data GitHub Action). `lastUpdated` reflects when that
+// snapshot was last synced, not this request's time.
 export async function GET() {
-  const transfers = await fetchTransfers(200);
-  const stats = computeStats(transfers);
-
+  const stats = getCumulativeStats();
   const totalVolumeUsd = (Number(stats.totalVolume) / 1_000_000).toFixed(2);
 
   return NextResponse.json(
@@ -13,10 +14,8 @@ export async function GET() {
       totalVolumeUsd,
       uniqueBuyers: stats.uniqueBuyers,
       uniqueSellers: stats.uniqueSellers,
-      lastUpdated: Date.now(),
+      lastUpdated: lastSyncedAt,
     },
-    {
-      headers: { "Cache-Control": "no-store" },
-    },
+    { headers: { "Cache-Control": "no-store" } },
   );
 }

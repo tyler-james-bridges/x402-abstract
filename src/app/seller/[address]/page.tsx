@@ -1,14 +1,8 @@
 import Link from "next/link";
 import TransactionTable from "@/components/TransactionTable";
-import {
-  fetchTransfers,
-  computeStats,
-  serializeTransfer,
-  serializeStats,
-} from "@/lib/transfers";
+import TimeAgo from "@/components/TimeAgo";
+import { recentTransfers, getSellerStats } from "@/lib/snapshot";
 import { formatAddress } from "@/lib/format";
-
-export const dynamic = "force-dynamic";
 
 export default async function SellerPage({
   params,
@@ -16,11 +10,20 @@ export default async function SellerPage({
   params: Promise<{ address: string }>;
 }) {
   const { address } = await params;
-  const allTransfers = await fetchTransfers(200);
-  const sellerTransfers = allTransfers.filter(
+  // All-time totals for this seller come from the persisted ledger, not
+  // just whatever's in the rolling recent window — a seller who was active
+  // back in March still shows their real history here.
+  const sellerStats = getSellerStats(address);
+  const stats = sellerStats ?? {
+    address: address.toLowerCase(),
+    txCount: 0,
+    totalVolume: "0",
+    uniqueBuyerCount: 0,
+    lastActive: 0,
+  };
+  const sellerTransfers = recentTransfers.filter(
     (t) => t.to.toLowerCase() === address.toLowerCase(),
   );
-  const stats = serializeStats(computeStats(sellerTransfers));
 
   return (
     <div className="space-y-6">
@@ -45,13 +48,13 @@ export default async function SellerPage({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-surface rounded-xl border border-border p-5">
           <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-1">
-            Transactions
+            Transactions (all-time)
           </p>
-          <p className="text-2xl font-bold text-text-primary">{stats.totalCount}</p>
+          <p className="text-2xl font-bold text-text-primary">{stats.txCount.toLocaleString()}</p>
         </div>
         <div className="bg-surface rounded-xl border border-border p-5">
           <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-1">
-            Volume
+            Volume (all-time)
           </p>
           <p className="text-2xl font-bold text-text-primary">
             ${(parseFloat(stats.totalVolume) / 1_000_000).toFixed(2)}
@@ -62,15 +65,15 @@ export default async function SellerPage({
             Unique Buyers
           </p>
           <p className="text-2xl font-bold text-text-primary">
-            {stats.uniqueBuyers}
+            {stats.uniqueBuyerCount.toLocaleString()}
           </p>
         </div>
         <div className="bg-surface rounded-xl border border-border p-5">
           <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-1">
-            Unique Sellers
+            Last Active
           </p>
           <p className="text-2xl font-bold text-text-primary">
-            {stats.uniqueSellers}
+            {stats.lastActive ? <TimeAgo timestamp={stats.lastActive} /> : "—"}
           </p>
         </div>
       </div>
@@ -79,7 +82,20 @@ export default async function SellerPage({
         <h2 className="text-lg font-semibold text-text-primary mb-4">
           Transaction History
         </h2>
-        <TransactionTable transfers={sellerTransfers.map(serializeTransfer)} />
+        {stats.txCount > sellerTransfers.length && (
+          <p className="text-sm text-text-secondary mb-3">
+            Showing the {sellerTransfers.length.toLocaleString()} most recent transactions
+            (last 30 days). This seller has {stats.txCount.toLocaleString()} total
+            {sellerStats?.firstSeen ? (
+              <>
+                {" "}
+                going back to <TimeAgo timestamp={sellerStats.firstSeen} />
+              </>
+            ) : null}
+            .
+          </p>
+        )}
+        <TransactionTable transfers={sellerTransfers} />
       </div>
     </div>
   );

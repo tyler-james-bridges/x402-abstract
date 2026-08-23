@@ -1,0 +1,11 @@
+{
+  "chainId": 2741,
+  "abscanApi": "https://block-explorer-api.mainnet.abs.xyz/api",
+  "facilitatorAddress": "0xd6316bca0446b63f2deffa8ed4e8191912a5e7e1",
+  "paymentSelectors": {
+    "0xe3ee160e": "service",
+    "0xcf092995": "tip"
+  },
+  "ackTipsUrl": "https://ack-onchain.dev/api/tips/hashes",
+  "recentWindowDays": 30
+}

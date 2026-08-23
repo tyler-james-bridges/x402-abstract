@@ -1,63 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  fetchTransfers,
+  recentTransfers,
+  lastSyncedAt,
+  getCumulativeStats,
+  getAllTimeSellers,
+  getFullDailyVolume,
   computeStats,
   computeSellerStats,
-  serializeTransfer,
-  serializeSellerStats,
-} from "@/lib/transfers";
+  filterByRange,
+  type TimeRange,
+  type DailyPoint,
+} from "@/lib/snapshot";
 
-const ACK_TIPS_URL = "https://ack-onchain.dev/api/tips/hashes";
+const VALID_RANGES: TimeRange[] = ["24h", "7d", "30d", "all"];
 
-async function fetchTipHashes(): Promise<Set<string>> {
-  try {
-    const res = await fetch(ACK_TIPS_URL, { next: { revalidate: 30 } });
-    if (!res.ok) return new Set();
-    const data = await res.json();
-    return new Set((data.hashes as string[]).map((h) => h.toLowerCase()));
-  } catch {
-    return new Set();
+function isTimeRange(value: string | null): value is TimeRange {
+  return value !== null && (VALID_RANGES as string[]).includes(value);
+}
+
+function dailyVolumeFromRecent(transfers: { timestamp: number; value: string }[]): DailyPoint[] {
+  const map = new Map<string, number>();
+  for (const t of transfers) {
+    const date = new Date(t.timestamp * 1000).toISOString().slice(0, 10);
+    map.set(date, (map.get(date) ?? 0) + Number(BigInt(t.value)) / 1_000_000);
   }
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, volume]) => ({ date, volume }));
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const limitParam = searchParams.get("limit");
+  const rangeParam = searchParams.get("range");
+  const range: TimeRange = isTimeRange(rangeParam) ? rangeParam : "all";
   const seller = searchParams.get("seller") ?? undefined;
-
+  const limitParam = searchParams.get("limit");
   const limit = Math.min(limitParam ? parseInt(limitParam, 10) : 50, 200);
 
-  const [allTransfers, tipHashes] = await Promise.all([
-    fetchTransfers(200),
-    fetchTipHashes(),
-  ]);
+  const windowed = filterByRange(recentTransfers, range);
+  const scoped = seller ? windowed.filter((t) => t.to.toLowerCase() === seller.toLowerCase()) : windowed;
 
-  // Supplement selector-based classification with tip hash registry
-  for (const t of allTransfers) {
-    if (tipHashes.has(t.hash.toLowerCase())) {
-      t.paymentType = "tip";
-    }
-  }
-
-  const stats = computeStats(allTransfers);
-  const sellers = computeSellerStats(allTransfers);
-  const transfers = seller
-    ? allTransfers.filter((t) => t.to.toLowerCase() === seller.toLowerCase()).slice(0, limit)
-    : allTransfers.slice(0, limit);
+  // "all" gets its stats/sellers from the unbounded cumulative ledger (exact
+  // since inception) rather than the rolling window, which only covers the
+  // last few weeks. The transaction list still comes from the rolling
+  // window either way — nothing renders 36k+ rows in a table.
+  const stats = range === "all" && !seller ? getCumulativeStats() : computeStats(scoped);
+  const sellers = range === "all" && !seller ? getAllTimeSellers() : computeSellerStats(scoped);
+  const dailyVolume = range === "all" ? getFullDailyVolume() : dailyVolumeFromRecent(scoped);
 
   return NextResponse.json(
     {
-      transfers: transfers.map(serializeTransfer),
-      stats: {
-        totalCount: stats.totalCount,
-        totalVolume: stats.totalVolume.toString(),
-        uniqueBuyers: stats.uniqueBuyers,
-        uniqueSellers: stats.uniqueSellers,
-      },
-      sellers: sellers.map(serializeSellerStats),
+      range,
+      lastSyncedAt,
+      stats,
+      sellers,
+      dailyVolume,
+      transfers: scoped.slice(0, limit),
     },
-    {
-      headers: { "Cache-Control": "no-store" },
-    },
+    { headers: { "Cache-Control": "no-store" } },
   );
 }

@@ -1,30 +1,29 @@
 "use client";
 
-interface SerializedTransfer {
-  value: string;
-  timestamp: number;
+const MAX_BARS = 60;
+
+export interface DailyVolumePoint {
+  date: string; // "YYYY-MM-DD"
+  volume: number;
 }
 
 interface VolumeChartProps {
-  transfers: SerializedTransfer[];
+  daily: DailyVolumePoint[];
 }
 
-function groupByDay(transfers: SerializedTransfer[]): { label: string; volume: number }[] {
-  const map = new Map<string, number>();
-
-  for (const t of transfers) {
-    const date = new Date(t.timestamp * 1000);
-    const key = `${date.getMonth() + 1}/${date.getDate()}`;
-    map.set(key, (map.get(key) ?? 0) + Number(BigInt(t.value)) / 1_000_000);
-  }
-
-  return [...map.entries()]
-    .map(([label, volume]) => ({ label, volume }))
-    .reverse();
+function toBars(daily: DailyVolumePoint[]): { label: string; volume: number }[] {
+  // `daily` only ever grows (one entry per day since inception), so cap how
+  // far back the chart reaches rather than rendering an ever-widening row
+  // of bars.
+  const recent = daily.slice(-MAX_BARS);
+  return recent.map(({ date, volume }) => {
+    const [, month, day] = date.split("-");
+    return { label: `${Number(month)}/${Number(day)}`, volume };
+  });
 }
 
-export default function VolumeChart({ transfers }: VolumeChartProps) {
-  const days = groupByDay(transfers);
+export default function VolumeChart({ daily }: VolumeChartProps) {
+  const days = toBars(daily);
 
   if (days.length === 0) return null;
 

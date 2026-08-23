@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import StatsBar from "./StatsBar";
-import VolumeChart from "./VolumeChart";
+import VolumeChart, { type DailyVolumePoint } from "./VolumeChart";
 import TransactionTable from "./TransactionTable";
 import SellerTable from "./SellerTable";
 
@@ -31,6 +31,15 @@ interface SerializedSellerStats {
   lastActive: number;
 }
 
+interface TransfersResponse {
+  range: TimeRange;
+  lastSyncedAt: string | null;
+  stats: SerializedStats;
+  sellers: SerializedSellerStats[];
+  dailyVolume: DailyVolumePoint[];
+  transfers: SerializedTransfer[];
+}
+
 type TimeRange = "24h" | "7d" | "30d" | "all";
 
 const RANGE_LABELS: Record<TimeRange, string> = {
@@ -39,55 +48,6 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   "30d": "30d",
   all: "All",
 };
-
-function filterByRange(transfers: SerializedTransfer[], range: TimeRange) {
-  if (range === "all") return transfers;
-  const now = Math.floor(Date.now() / 1000);
-  const cutoff =
-    range === "24h" ? now - 86400 : range === "7d" ? now - 604800 : now - 2592000;
-  return transfers.filter((t) => t.timestamp >= cutoff);
-}
-
-function computeClientStats(transfers: SerializedTransfer[]): SerializedStats {
-  const buyers = new Set<string>();
-  const sellers = new Set<string>();
-  let totalVolume = BigInt(0);
-  for (const t of transfers) {
-    buyers.add(t.from.toLowerCase());
-    sellers.add(t.to.toLowerCase());
-    totalVolume += BigInt(t.value);
-  }
-  return {
-    totalCount: transfers.length,
-    totalVolume: totalVolume.toString(),
-    uniqueBuyers: buyers.size,
-    uniqueSellers: sellers.size,
-  };
-}
-
-function computeClientSellers(transfers: SerializedTransfer[]): SerializedSellerStats[] {
-  const map = new Map<string, { txCount: number; totalVolume: bigint; buyers: Set<string>; lastActive: number; address: string }>();
-  for (const t of transfers) {
-    const key = t.to.toLowerCase();
-    if (!map.has(key)) {
-      map.set(key, { address: t.to, txCount: 0, totalVolume: BigInt(0), buyers: new Set(), lastActive: 0 });
-    }
-    const entry = map.get(key)!;
-    entry.txCount++;
-    entry.totalVolume += BigInt(t.value);
-    entry.buyers.add(t.from.toLowerCase());
-    if (t.timestamp > entry.lastActive) entry.lastActive = t.timestamp;
-  }
-  return [...map.values()]
-    .sort((a, b) => b.txCount - a.txCount)
-    .map((s) => ({
-      address: s.address,
-      txCount: s.txCount,
-      totalVolume: s.totalVolume.toString(),
-      uniqueBuyerCount: s.buyers.size,
-      lastActive: s.lastActive,
-    }));
-}
 
 function SectionHeader({
   title,
@@ -123,34 +83,45 @@ function LoadingSkeleton() {
   );
 }
 
+function formatSyncedAt(iso: string | null): string {
+  if (!iso) return "never";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 export default function HomeContent() {
-  const [allTransfers, setAllTransfers] = useState<SerializedTransfer[] | null>(null);
+  const [data, setData] = useState<TransfersResponse | null>(null);
   const [range, setRange] = useState<TimeRange>("all");
 
   useEffect(() => {
+    let cancelled = false;
     const refresh = async () => {
       try {
-        const res = await fetch("/api/transfers?limit=200");
-        if (!res.ok) return;
-        const data = await res.json();
-        setAllTransfers(data.transfers);
+        const res = await fetch(`/api/transfers?range=${range}&limit=200`);
+        if (!res.ok || cancelled) return;
+        const json: TransfersResponse = await res.json();
+        if (!cancelled) setData(json);
       } catch {
         /* silent refresh failure */
       }
     };
     refresh();
-    const interval = setInterval(refresh, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    // Data only changes when the sync-x402-data GitHub Action commits and
+    // Vercel redeploys (every 30 min), so this just catches that without
+    // requiring a manual reload — not a live chain poll.
+    const interval = setInterval(refresh, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [range]);
 
-  const filtered = useMemo(
-    () => (allTransfers ? filterByRange(allTransfers, range) : []),
-    [allTransfers, range],
-  );
-  const stats = useMemo(() => computeClientStats(filtered), [filtered]);
-  const sellers = useMemo(() => computeClientSellers(filtered), [filtered]);
-
-  if (!allTransfers) return <LoadingSkeleton />;
+  if (!data) return <LoadingSkeleton />;
 
   return (
     <div className="space-y-8">
@@ -159,7 +130,7 @@ export default function HomeContent() {
           <div>
             <h1 className="text-2xl font-bold text-text-primary">x402 on Abstract</h1>
             <p className="text-sm text-text-secondary mt-1">
-              Real-time x402 payment activity on Abstract L2
+              x402 payment activity on Abstract L2 · synced {formatSyncedAt(data.lastSyncedAt)}
             </p>
           </div>
           <div className="flex items-center gap-1 bg-surface-hover rounded-lg p-1">
@@ -179,29 +150,33 @@ export default function HomeContent() {
           </div>
         </div>
         <StatsBar
-          totalCount={stats.totalCount}
-          totalVolume={stats.totalVolume}
-          uniqueBuyers={stats.uniqueBuyers}
-          uniqueSellers={stats.uniqueSellers}
+          totalCount={data.stats.totalCount}
+          totalVolume={data.stats.totalVolume}
+          uniqueBuyers={data.stats.uniqueBuyers}
+          uniqueSellers={data.stats.uniqueSellers}
         />
       </div>
 
       <div>
         <SectionHeader
           title="Recent Transactions"
-          description="x402 USDC.e transfers on Abstract L2"
+          description={
+            range === "all"
+              ? "Most recent x402 USDC.e transfers (stats above cover all-time)"
+              : "x402 USDC.e transfers on Abstract L2"
+          }
         />
-        <TransactionTable transfers={filtered} />
+        <TransactionTable transfers={data.transfers} />
       </div>
 
-      <VolumeChart transfers={filtered} />
+      <VolumeChart daily={data.dailyVolume} />
 
       <div>
         <SectionHeader
           title="Top Sellers"
           description="Addresses receiving x402 payments on Abstract"
         />
-        <SellerTable sellers={sellers} />
+        <SellerTable sellers={data.sellers} />
       </div>
     </div>
   );
