@@ -7,9 +7,13 @@ export default function TimeAgo({ timestamp }: { timestamp: number }) {
   const [display, setDisplay] = useState("");
 
   useEffect(() => {
-    setDisplay(timeAgo(timestamp));
-    const interval = setInterval(() => setDisplay(timeAgo(timestamp)), 30000);
-    return () => clearInterval(interval);
+    const tick = () => setDisplay(timeAgo(timestamp));
+    const immediate = window.setTimeout(tick, 0);
+    const interval = window.setInterval(tick, 30000);
+    return () => {
+      window.clearTimeout(immediate);
+      window.clearInterval(interval);
+    };
   }, [timestamp]);
 
   return <span className="text-sm text-text-secondary">{display}</span>;
